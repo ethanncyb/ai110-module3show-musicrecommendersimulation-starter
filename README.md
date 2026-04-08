@@ -25,13 +25,15 @@ Each `Song` stores 9 attributes loaded from `data/songs.csv`:
 
 | Feature | Type | Description |
 |---------|------|-------------|
-| `genre` | string | Musical style (pop, lofi, rock, jazz, ambient, synthwave, indie pop) |
-| `mood` | string | Emotional tone (happy, chill, intense, relaxed, moody, focused) |
+| `genre` | string | Musical style — 27 genres including pop, lofi, rock, jazz, ambient, hip-hop, edm, metal, classical, reggae, funk, and more |
+| `mood` | string | Emotional tone — 25 moods including happy, chill, intense, relaxed, euphoric, nostalgic, angry, romantic, and more |
 | `energy` | float 0–1 | Perceived intensity and activity level |
-| `tempo_bpm` | float | Beats per minute (~60–152) |
+| `tempo_bpm` | float | Beats per minute (~58–168) |
 | `valence` | float 0–1 | Musical positiveness |
 | `danceability` | float 0–1 | How suitable the song is for dancing |
 | `acousticness` | float 0–1 | How acoustic (vs. electronic/produced) the song sounds |
+| `instrumentalness` | float 0–1 | Likelihood the track contains no vocals |
+| `speechiness` | float 0–1 | Presence of spoken words (high = rap/podcast, low = pure music) |
 
 ### User Profile
 
@@ -68,6 +70,28 @@ score = (0.35 × genre_match)
 3. Return the top-k songs with their scores and explanations
 
 Every song gets scored — no pre-filtering — so a surprisingly good match is never missed.
+
+### Data Flow
+
+See [`flowchart.md`](flowchart.md) for the full Mermaid.js diagram. The flow in brief:
+
+```
+Input (User Prefs + songs.csv)
+  → load_songs()
+  → For each song: score_song()
+      → genre_score + mood_score + energy_score + acoustic_score
+      → weighted sum → (score, reasons)
+  → sort descending
+  → slice top-k
+  → Output: Ranked Recommendations (song, score, explanation)
+```
+
+### Known Biases
+
+- **Genre dominance:** At 0.35 weight, genre is the single largest signal. A song that matches genre but has the wrong mood and poor energy can still outscore a song with a perfect energy match and no genre match. Great songs in the "wrong" genre are systematically underranked.
+- **Catalog sparsity amplifies energy:** With 27 unique genres across 30 songs, most genre queries match only 1–2 songs. For the remaining 28+ songs that score 0 on genre, energy (0.25 weight) becomes the primary differentiator — giving it more practical influence than its weight suggests.
+- **Mood granularity:** 25 unique moods means most moods appear only once. A user seeking "nostalgic" gets exactly one mood match; all other songs are judged on energy and acoustic alone.
+- **No cross-feature interaction:** The system treats genre and mood as independent. It cannot detect that "chill lofi" and "intense rock" are meaningfully different combinations — a song can score well on genre alone without capturing the session's emotional intent.
 
 ---
 

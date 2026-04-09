@@ -120,6 +120,57 @@ Four distinct user profiles were run to evaluate the recommender's behavior acro
 
 ---
 
+## Challenge Implementations
+
+### Challenge 1 — Advanced Song Features
+
+Seven new attributes were added to `data/songs.csv` beyond the baseline set:
+
+| Feature | Type | Description |
+|---------|------|-------------|
+| `popularity` | int 0–100 | Stream-count-derived popularity score |
+| `release_year` | int | Year the track was released |
+| `key_signature` | string | Musical key (e.g., "C Major", "A Minor") |
+| `time_signature` | int | Beats per measure (3 or 4) |
+| `detailed_moods` | string | Pipe-separated mood tags (e.g., `"upbeat\|energetic\|bright"`) |
+| `instrumentalness` | float 0–1 | Likelihood of no vocals |
+| `speechiness` | float 0–1 | Presence of spoken words |
+
+Three of these drive scoring bonuses on top of the base weighted score:
+- **Popularity** (Signal 5): songs at or above `min_popularity` receive up to +0.08
+- **Release era** (Signal 6): songs from the user's `preferred_decade` receive up to +0.06, dropping 0.25 per decade away
+- **Mood tags** (Signal 7): tag overlap between song `detailed_moods` and user `preferred_tags` adds up to +0.10
+
+### Challenge 2 — Multiple Scoring Modes
+
+A `RankingStrategy` dataclass carries four weights (`genre`, `mood`, `energy`, `acoustic`). Four built-in strategies let users switch ranking emphasis without touching any scoring logic:
+
+| Strategy | Genre | Mood | Energy | Acoustic |
+|----------|-------|------|--------|----------|
+| `DEFAULT` | 16% | 28% | 47% | 9% |
+| `GENRE_FIRST` | 50% | 25% | 20% | 5% |
+| `MOOD_FIRST` | 15% | 55% | 25% | 5% |
+| `ENERGY_FOCUSED` | 10% | 10% | 75% | 5% |
+
+Each user profile in `main.py` is assigned a strategy via `PROFILE_STRATEGIES`. A `compare_strategies()` function runs all four modes on the same profile and prints a side-by-side table of the top-ranked song per strategy.
+
+### Challenge 3 — Diversity and Fairness Logic
+
+Both `recommend_songs()` and `Recommender.recommend()` use a greedy re-ranking loop that applies a penalty before each selection:
+
+- **Artist repeat penalty**: −0.30 if the artist already appears in the selected list
+- **Genre repeat penalty**: −0.15 if the genre already appears in the selected list
+
+This prevents the top-5 from being dominated by a single artist or genre even when one style strongly matches the user's preferences.
+
+### Challenge 4 — Visual Summary Table
+
+Output is formatted with the [`tabulate`](https://pypi.org/project/tabulate/) library using the `rounded_outline` theme. Each profile run prints a full recommendation table with columns for rank, title, artist, genre, score, and reasons. The strategy comparison also renders as a tabulate table.
+
+![Challenge implementation output — Conflicted Listener profile with Genre-First strategy and strategy comparison table](pics/challenge_implementation.png)
+
+---
+
 ## Getting Started
 
 ### Setup
@@ -157,11 +208,20 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+### Weight Shift Experiment
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+I designed and tested an experiment to see how changing the scoring weights affects which songs get recommended. The key question was: *If we adjust how much each factor (genre, mood, energy, acousticness) matters, do we get very different recommendations?*
+
+**How it worked:**
+I started with the default weights (35% genre, 30% mood, 25% energy, 10% acoustic) and then created a shifted configuration—doubling energy's importance (25% → 47%) and halving genre's (35% → 16%). Then I ran four user profiles through both weight configurations and compared the top-5 recommendations.
+
+**What I learned:**
+The weight shift produced more accurate results in 2 of 4 profiles. The clearest win was for a "Deep Intense Rock" profile, where a metal song with a perfect mood and energy match was rightly elevated over a rock song that only matched on genre. Some profiles saw only minor reorders, while an adversarial profile exposed limitations in both configurations.
+
+I used **Claude Code** to help me plan the experiment structure, design clear test cases, and organize the data collection so the results would be easy to interpret and compare.
+
+All experiment details and findings are documented here: [**docs/weight_shift_experiment.md**](docs/weight_shift_experiment.md)
+
 
 ---
 
@@ -181,120 +241,12 @@ You will go deeper on this in your model card.
 
 ## Reflection
 
-Read and complete `model_card.md`:
+After running all four profiles, I compared them in pairs to understand how the scoring formula behaves under different conditions:
+- Chill Lofi vs Deep Intense Rock
+- High-Energy Pop vs Conflicted Listener
+- Deep Intense Rock vs Conflicted Listener
 
-[**Model Card**](model_card.md)
+Full pair comparison details: [**docs/reflection.md**](docs/reflection.md) 
 
-Write 1 to 2 paragraphs here about what you learned:
-
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
-
-
----
-
-## 7. `model_card_template.md`
-
-Combines reflection and model card framing from the Module 3 guidance. :contentReference[oaicite:2]{index=2}  
-
-```markdown
-# 🎧 Model Card - Music Recommender Simulation
-
-## 1. Model Name
-
-Give your recommender a name, for example:
-
-> VibeFinder 1.0
-
----
-
-## 2. Intended Use
-
-- What is this system trying to do
-- Who is it for
-
-Example:
-
-> This model suggests 3 to 5 songs from a small catalog based on a user's preferred genre, mood, and energy level. It is for classroom exploration only, not for real users.
-
----
-
-## 3. How It Works (Short Explanation)
-
-Describe your scoring logic in plain language.
-
-- What features of each song does it consider
-- What information about the user does it use
-- How does it turn those into a number
-
-Try to avoid code in this section, treat it like an explanation to a non programmer.
-
----
-
-## 4. Data
-
-Describe your dataset.
-
-- How many songs are in `data/songs.csv`
-- Did you add or remove any songs
-- What kinds of genres or moods are represented
-- Whose taste does this data mostly reflect
-
----
-
-## 5. Strengths
-
-Where does your recommender work well
-
-You can think about:
-- Situations where the top results "felt right"
-- Particular user profiles it served well
-- Simplicity or transparency benefits
-
----
-
-## 6. Limitations and Bias
-
-Where does your recommender struggle
-
-Some prompts:
-- Does it ignore some genres or moods
-- Does it treat all users as if they have the same taste shape
-- Is it biased toward high energy or one genre by default
-- How could this be unfair if used in a real product
-
----
-
-## 7. Evaluation
-
-How did you check your system
-
-Examples:
-- You tried multiple user profiles and wrote down whether the results matched your expectations
-- You compared your simulation to what a real app like Spotify or YouTube tends to recommend
-- You wrote tests for your scoring logic
-
-You do not need a numeric metric, but if you used one, explain what it measures.
-
----
-
-## 8. Future Work
-
-If you had more time, how would you improve this recommender
-
-Examples:
-
-- Add support for multiple users and "group vibe" recommendations
-- Balance diversity of songs instead of always picking the closest match
-- Use more features, like tempo ranges or lyric themes
-
----
-
-## 9. Personal Reflection
-
-A few sentences about what you learned:
-
-- What surprised you about how your system behaved
-- How did building this change how you think about real music recommenders
-- Where do you think human judgment still matters, even if the model seems "smart"
-
+### Model Card
+→ [**Model Card**](model_card.md)

@@ -13,12 +13,12 @@ Active weight configuration: `genre=0.16 | mood=0.28 | energy=0.47 | acoustic=0.
 **Chill Lofi** (`genre=lofi`, `mood=chill`, `energy=0.2`, `likes_acoustic=True`)
 Top result: Library Rain (score: 0.9169)
 
-![Chill Lofi results](pics/weightshift_profiles_2.png)
+![Chill Lofi results](../pics/weightshift_profiles_2.png)
 
 **Deep Intense Rock** (`genre=rock`, `mood=angry`, `energy=0.95`, `likes_acoustic=False`)
 Top result: Iron Curtain (score: 0.8346)
 
-![Deep Intense Rock results](pics/weightshift_profiles_3.png)
+![Deep Intense Rock results](../pics/weightshift_profiles_3.png)
 
 This is the most opposite pair in the test. Every preference is reversed:
 
@@ -47,12 +47,12 @@ This is the most opposite pair in the test. Every preference is reversed:
 **High-Energy Pop** (`genre=pop`, `mood=happy`, `energy=0.9`, `likes_acoustic=False`)
 Top result: Sunrise City (score: 0.9462)
 
-![High-Energy Pop results](pics/weightshift_profiles_1.png)
+![High-Energy Pop results](../pics/weightshift_profiles_1.png)
 
 **Conflicted Listener** (`genre=classical`, `mood=sad`, `energy=0.9`, `likes_acoustic=True`)
 Top result: Hollow Rain (score: 0.5472)
 
-![Conflicted Listener results](pics/weightshift_profiles_4.png)
+![Conflicted Listener results](../pics/weightshift_profiles_4.png)
 
 Both profiles request the exact same energy (0.9), yet their top scores are 0.40 apart.
 
@@ -77,12 +77,12 @@ Both profiles request the exact same energy (0.9), yet their top scores are 0.40
 **Deep Intense Rock** (`genre=rock`, `mood=angry`, `energy=0.95`, `likes_acoustic=False`)
 Top result: Iron Curtain (score: 0.8346)
 
-![Deep Intense Rock results](pics/weightshift_profiles_3.png)
+![Deep Intense Rock results](../pics/weightshift_profiles_3.png)
 
 **Conflicted Listener** (`genre=classical`, `mood=sad`, `energy=0.9`, `likes_acoustic=True`)
 Top result: Hollow Rain (score: 0.5472)
 
-![Conflicted Listener results](pics/weightshift_profiles_4.png)
+![Conflicted Listener results](../pics/weightshift_profiles_4.png)
 
 These two profiles have nearly the same energy target (0.95 vs 0.90), yet their results look nothing alike. The only difference driving the split is acoustic preference.
 

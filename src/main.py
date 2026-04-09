@@ -9,7 +9,11 @@ You will implement the functions in recommender.py:
 - recommend_songs
 """
 
-from .recommender import load_songs, recommend_songs, score_song
+from .recommender import (
+    load_songs, recommend_songs, score_song,
+    DEFAULT, GENRE_FIRST, MOOD_FIRST, ENERGY_FOCUSED, RankingStrategy,
+)
+from tabulate import tabulate
 
 
 PROFILES = {
@@ -18,18 +22,24 @@ PROFILES = {
         "mood": "happy",
         "energy": 0.9,
         "likes_acoustic": False,
+        "min_popularity": 70,                          # only boost popular tracks
+        "preferred_tags": ["upbeat", "energetic", "bright", "happy"],
     },
     "Chill Lofi": {
         "genre": "lofi",   # dataset uses "lofi", not "lo-fi"
         "mood": "chill",   # dataset uses "chill", not "calm"
         "energy": 0.2,
         "likes_acoustic": True,
+        "preferred_tags": ["chill", "focused", "ambient", "peaceful"],
+        "preferred_decade": 2020,                      # prefers recent releases
     },
     "Deep Intense Rock": {
         "genre": "rock",
         "mood": "angry",
         "energy": 0.95,
         "likes_acoustic": False,
+        "preferred_decade": 1990,                      # classic rock era
+        "preferred_tags": ["aggressive", "raw", "rebellious", "heavy", "intense"],
     },
     # Edge-case / adversarial: conflicting preferences
     "Conflicted Listener": {
@@ -37,10 +47,26 @@ PROFILES = {
         "mood": "sad",
         "energy": 0.9,   # high energy but sad mood — intentionally contradictory
         "likes_acoustic": True,
+        "preferred_tags": ["melancholy", "introspective", "elegant", "sad"],
+        "preferred_decade": 2010,
     },
 }
 
-WEIGHTS = {"genre": 0.16, "mood": 0.28, "energy": 0.47, "acoustic": 0.09}
+# Weights mirror DEFAULT strategy — used by explain_top_song() for the signal breakdown
+WEIGHTS = {
+    "genre":   DEFAULT.genre_weight,
+    "mood":    DEFAULT.mood_weight,
+    "energy":  DEFAULT.energy_weight,
+    "acoustic": DEFAULT.acoustic_weight,
+}
+
+# Per-profile strategy assignments — change any value to switch that profile's ranking mode
+PROFILE_STRATEGIES = {
+    "High-Energy Pop":    DEFAULT,
+    "Chill Lofi":         MOOD_FIRST,
+    "Deep Intense Rock":  ENERGY_FOCUSED,
+    "Conflicted Listener": GENRE_FIRST,
+}
 
 
 def explain_top_song(user_prefs: dict, song: dict) -> None:
@@ -72,22 +98,53 @@ def explain_top_song(user_prefs: dict, song: dict) -> None:
     print()
 
 
-def run_profile(name: str, user_prefs: dict, songs: list) -> None:
+def compare_strategies(user_prefs: dict, songs: list, profile_name: str) -> None:
+    """Runs the same profile through every strategy and shows the #1 winner for each."""
+    print(f"\n{'#'*60}")
+    print(f"  Strategy Comparison — Profile: {profile_name}")
+    print(f"{'#'*60}\n")
+    rows = []
+    for strat in [DEFAULT, GENRE_FIRST, MOOD_FIRST, ENERGY_FOCUSED]:
+        results = recommend_songs(user_prefs, songs, k=1, strategy=strat)
+        if results:
+            song, score, _ = results[0]
+            rows.append([strat.name, song["title"], song["artist"], song["genre"], f"{score:.4f}"])
+    print(tabulate(
+        rows,
+        headers=["Strategy", "#1 Title", "Artist", "Genre", "Score"],
+        tablefmt="rounded_outline",
+    ))
+    print()
+
+
+def run_profile(name: str, user_prefs: dict, songs: list, strategy: RankingStrategy = DEFAULT) -> None:
     print(f"\n{'='*60}")
-    print(f"  Profile: {name}")
+    print(f"  Profile: {name}  [Strategy: {strategy.name}]")
     print(f"  genre={user_prefs['genre']} | mood={user_prefs['mood']} | "
           f"energy={user_prefs['energy']} | likes_acoustic={user_prefs['likes_acoustic']}")
     print("=" * 60)
 
-    recommendations = recommend_songs(user_prefs, songs, k=5)
+    recommendations = recommend_songs(user_prefs, songs, k=5, strategy=strategy)
 
     print(f"\nTop {len(recommendations)} Recommendations:\n")
+    table_rows = []
     for rank, (song, score, explanation) in enumerate(recommendations, start=1):
-        print(f"  {rank}. {song['title']} by {song['artist']}")
-        print(f"     Score: {score:.4f}")
-        for reason in explanation.split("; "):
-            print(f"     - {reason}")
-        print()
+        reasons_formatted = "\n".join(f"• {r}" for r in explanation.split("; "))
+        table_rows.append([
+            rank,
+            song["title"],
+            song["artist"],
+            song["genre"],
+            f"{score:.4f}",
+            reasons_formatted,
+        ])
+    print(tabulate(
+        table_rows,
+        headers=["#", "Title", "Artist", "Genre", "Score", "Reasons"],
+        tablefmt="rounded_outline",
+        colalign=("center", "left", "left", "left", "center", "left"),
+    ))
+    print()
 
     # Step 2: explain why the #1 song ranked first
     if recommendations:
@@ -97,7 +154,8 @@ def run_profile(name: str, user_prefs: dict, songs: list) -> None:
 def main() -> None:
     songs = load_songs("data/songs.csv")
     for name, prefs in PROFILES.items():
-        run_profile(name, prefs, songs)
+        run_profile(name, prefs, songs, PROFILE_STRATEGIES.get(name, DEFAULT))
+    compare_strategies(PROFILES["Conflicted Listener"], songs, "Conflicted Listener")
 
 
 if __name__ == "__main__":

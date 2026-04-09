@@ -2,7 +2,7 @@
 
 ## 1. Model Name
 
-**VibeFinder 1.0**
+**GrooveGenius 1.0**
 
 ---
 
@@ -88,7 +88,26 @@ Every song is scored (no pre-filtering). Top 5 are returned with a plain-languag
 
 ---
 
-## 7. Evaluation
+## 7. Diversity and Fairness
+
+Without any diversity logic, a pure score-sort can produce a filter bubble: all 5 results come from the same artist or genre, which feels repetitive and reinforces a narrow slice of the catalog.
+
+GrooveGenius uses a **greedy re-ranking loop** to counteract this. Before each selection, two penalties are subtracted from a song's raw score:
+
+| Penalty | Amount | Trigger |
+|---|---|---|
+| Artist repeat | −0.30 | Artist already appears in the selected list |
+| Genre repeat | −0.15 | Genre already appears in the selected list |
+
+The artist penalty is intentionally larger (−0.30) because hearing the same artist back-to-back is the most jarring form of repetition. The genre penalty is smaller (−0.15) because some genre overlap is acceptable — a user who wants pop may still enjoy two pop songs as long as they aren't both from the same act.
+
+**How it reduces filter bubbles:** A second song by Neon Echo that scores 0.72 raw will be treated as if it scored 0.42 (0.72 − 0.30), making it less competitive than a 0.55-scoring song from a fresh artist. The catalog's weaker matches get a real shot at the top 5.
+
+**Fairness benefit:** The penalty is applied dynamically, not as a hard ban. An artist can still appear twice if they genuinely dominate on score — but only after every other artist has been given a fair chance to rank. This mirrors how real platforms balance "best match" against "don't play the same artist three times in a row."
+
+---
+
+## 8. Evaluation
 
 ### Profiles Tested
 
@@ -138,7 +157,6 @@ Full experiment: [`docs/weight_shift_experiment.md`](docs/weight_shift_experimen
 |---|---|
 | Genre similarity graph | Partial credit for related genres (lofi ~ ambient), breaks winner-takes-all |
 | Conflict detection | Warn users when preferences contradict each other |
-| Diversity enforcement | Prevent 5 near-identical songs from dominating the top results |
 | Larger balanced catalog | 3–5 songs per genre so all signals can actually differentiate |
 | Continuous mood scoring | "angry" and "intense" should be closer than "angry" and "peaceful" |
 
@@ -146,4 +164,10 @@ Full experiment: [`docs/weight_shift_experiment.md`](docs/weight_shift_experimen
 
 ## 9. Personal Reflection
 
-The biggest surprise: the scoring formula looked balanced on paper (genre=35%, mood=30%, energy=25%), but genre dominated nearly every result in practice. Not because its weight was too high, but because 25 of 27 genres had only one song to compete with. Intended weight and actual influence are two different things. Real apps like Spotify feel more varied not because their algorithms are smarter, but because millions of songs per genre give every signal a real chance to matter.
+The biggest surprise: the scoring formula looked balanced on paper (genre=35%, mood=30%, energy=25%), but genre dominated nearly every result in practice. Not because its weight was too high, but because 25 of 27 genres had only one song to compete with. Intended weight and actual influence are two different things.
+
+The weight shift experiment confirmed this. When I halved genre's weight and doubled energy's, 2 of 4 profiles got more accurate results — most clearly "Deep Intense Rock," where a metal song with a perfect angry mood and exact energy match was rightly promoted over a rock song that only matched on genre. The formula wasn't broken; it was just over-rewarding genre in a catalog where genre matches are nearly guaranteed to be unique.
+
+The other lesson came from comparing profile pairs. Two profiles can request the same energy (0.9) and get scores 0.40 apart, because one has preferences the catalog can satisfy and the other doesn't. Result quality depends as much on catalog coverage as on the algorithm — and the system gives no warning when it can't find a good match.
+
+Real apps like Spotify feel more varied not because their algorithms are smarter, but because millions of songs per genre give every signal a real chance to matter.
